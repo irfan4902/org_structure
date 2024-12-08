@@ -7,6 +7,7 @@ import time
 import logging
 import os
 from dotenv import load_dotenv
+import json
 
 # Load the .env file
 load_dotenv()
@@ -18,9 +19,9 @@ COOKIE_HEADER = os.getenv("COOKIE_HEADER")
 # Paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LOG_FILE_NAME = "org_structure.log"
-OUTPUT_FILE_NAME = "org_structure.txt"
+OUTPUT_FILE_NAME = "org_structure.json"
 
-WAIT_TIME = 1 # Wait time between requests cuz I don't wanna get blocked
+WAIT_TIME = 1  # Wait time between requests cuz I don't wanna get blocked
 
 print(f"BIG_BOSS_ID: {BIG_BOSS_ID}")
 print(f"COOKIE_HEADER: {COOKIE_HEADER}")
@@ -107,7 +108,7 @@ def build_org_tree(person_id, cookie_header):
         big_boss["Email"],
         big_boss["JobTitle"],
     )
-    
+
     logging.info(f"ADDED DA TOP G OF DA WHOLE ORG!!!: {root.full_name}")
     stack = [(root, data["d"])]
 
@@ -138,11 +139,15 @@ def print_tree(node, level=0):
         print_tree(child, level + 1)
 
 
-def write_tree_to_file(node, file, level=0):
-    file.write(" " * level * 2 + f"{node.full_name} ({node.email}, {node.job_title})\n")
-    for child in node.children:
-        write_tree_to_file(child, file, level + 1)
-        logging.info(f"Organization structure written to {file}")
+# Helper to convert TreeNode to dictionary
+def tree_to_dict(node):
+    return {
+        "person_id": node.person_id,
+        "full_name": node.full_name,
+        "email": node.email,
+        "job_title": node.job_title,
+        "directs": [tree_to_dict(child) for child in node.children],
+    }
 
 
 #
@@ -162,15 +167,15 @@ org_tree = build_org_tree(BIG_BOSS_ID, COOKIE_HEADER)
 
 end_time = time.time()
 
-duration = start_time - end_time
+duration = end_time - start_time
 
 print_tree(org_tree)
 
-# Save output file
+# Save to JSON file
 with open(f"{BASE_DIR}/{OUTPUT_FILE_NAME}", "w") as file:
-    write_tree_to_file(org_tree, file)
+    json.dump(tree_to_dict(org_tree), file, indent=4)
 
 print(f"Scraping all the data took: {duration}")
-logging(f"Scraping all the data took: {duration}")
+logging.info(f"Scraping all the data took: {duration}")
 
 logging.info("ALL DONE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
