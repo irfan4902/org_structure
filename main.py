@@ -20,6 +20,8 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LOG_FILE_NAME = "org_structure.log"
 OUTPUT_FILE_NAME = "org_structure.txt"
 
+WAIT_TIME = 1 # Wait time between requests cuz I don't wanna get blocked
+
 print(f"BIG_BOSS_ID: {BIG_BOSS_ID}")
 print(f"COOKIE_HEADER: {COOKIE_HEADER}")
 print(f"BASE_DIR: {BASE_DIR}")
@@ -35,8 +37,8 @@ class TreeNode:
 
 
 def send_request_directs(person_id, cookie_header) -> requests.Response:
-    logging.info(f"Sending request to see who reports to for person_id: {person_id}")
-    time.sleep(1.5)  # Wait for 1.5 seconds before sending the request
+    logging.info(f"Sending request to see who reports to person_id: {person_id}")
+    time.sleep(WAIT_TIME)
     response = requests.get(
         f"https://nam.delve.office.com/mt/v3/people/{person_id}/core/directs",
         headers={
@@ -65,7 +67,7 @@ def send_request_directs(person_id, cookie_header) -> requests.Response:
 
 def send_request_managers(person_id, cookie_header) -> requests.Response:
     logging.info(f"Sending request to see who is the boss of person_id: {person_id}")
-    time.sleep(1.5)  # Wait for 1.5 seconds before sending the request
+    time.sleep(WAIT_TIME)
     response = requests.get(
         f"https://nam.delve.office.com/mt/v3/people/{person_id}/core/managers",
         headers={
@@ -112,6 +114,9 @@ def build_org_tree(person_id, cookie_header):
     while stack:
         node, people = stack.pop()
         for person in people:
+            if not person.get("JobTitle"):
+                logging.info(f"Skipping person without JobTitle: {person['FullName']}")
+                continue
             child_node = TreeNode(
                 person["AadObjectId"],
                 person["FullName"],
@@ -151,12 +156,21 @@ logging.basicConfig(
     format="%(asctime)s - %(message)s",
 )
 
+start_time = time.time()
+
 org_tree = build_org_tree(BIG_BOSS_ID, COOKIE_HEADER)
+
+end_time = time.time()
+
+duration = start_time - end_time
 
 print_tree(org_tree)
 
 # Save output file
 with open(f"{BASE_DIR}/{OUTPUT_FILE_NAME}", "w") as file:
     write_tree_to_file(org_tree, file)
+
+print(f"Scraping all the data took: {duration}")
+logging(f"Scraping all the data took: {duration}")
 
 logging.info("ALL DONE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
